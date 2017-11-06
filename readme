@@ -1,0 +1,126 @@
+Tim Nguyen
+CIS-3207-001
+
+-MyShell- 
+
+-Purpose
+	To implement a simple shell that can receive simple commmands. It help to taught interprocess communication through dup and pipes. This allows for more complex commands that involves more than one process inputs. Mainly, the shell involves many means to control strings and manipulate strings in memory. 
+
+-Problem
+	The fundamental problem was to how to manipulate strings and the allocation of string within memory as there needs to be stable control how malloc and free. There are cases of memory leaks and those were simply terrifying as it has a visual affect to slow down the shell. In most cases, segmentation violation tends to be the only error signal because manipulating strings in low level is really intricate. 
+
+-Solution
+	The only solution is using GDB to pinpoint the target part of the segmentation violation. Since C have a robust library that has many means to manipulate strings. Other functions can be called to help with the existing problem. However the majority of the cases, syntax or unplaned allocation was the problem. In those cases, simple fixes solve them.
+
+-I/O redirection
+	output and input redirection in c can easily by done through dup() or dup2(). However, dup2 would be preferable as it close and dup the targeted file descriptor in one execution. 
+	to input a file, a file descriptor of a file must be opened and be dup2ed into stdin. So the process would perceived the file as stdin. the process will run with file data as its input.
+	to output a file, a file descriptor of a file will be opened and be dup2ed into stdout. so the process would print into stdout and thus in the file. 
+
+-program environ
+	this stores path where all of the shell's resource paths.
+	USER - The current username
+	HOME - The current user's home directory
+	SHELL - The shell's exec file directory
+	PATH - The system's directory for its executable and programs  
+	CWD - the shell's current working directory
+
+-background execution
+	This part of the shell will allows process to execute a command by using "&" without having to wait for the execution to complete, by not waiting for the child process when fork is called. Whenever the child process completed its task/s, it will output to stdout or a file. 
+
+-piping
+	Piping is similar to how I/O redirection is done. This time you would have this one directional pipe that you stuck one end to the stdout of the first process and stdin for the second process. Everything that would be put in stdout in the first process would go through the pipe to the second process by using dup2 to stdout of the first process. The second process would have to put the pipe into its stdin with dup2 and would receives everything the first process put out as its input. 
+
+-external commands
+	Any non-Builtin commands will be pushed to the system's executables. Execvp will be used to find the executable to process the command of the user. all arguments will be pushed into the executable as a child process. When done, the child process can push its stdout into the terminal.
+
+-Builtin Functions
+cd 
+	Change working directory to inputted path or if path is null cd will change to $HOME. only a path can be input, due to the limitation of one working directory
+
+clr
+	Clear screen and will receive no input. this function does not needs any argv
+
+dir
+	Prints out all file within current working directory. Allows to redirect file list to a file, specified by the user.with the format of dir > "PATH".
+
+printenv
+	print all shell's environments in an orderly manner. This command is capable of printing shell's enviroment in 	a file. 
+
+echo
+	this would print to stdout any character after calling the command. This command is capable of printing to a file
+
+help
+	this will allows user to read shell's manual and any other man able that is within the man library. this command is capable of printing any man or this shel's manual to a file. This function can take in one arg either the builtin function names or ones that is within man's library.
+
+mypause
+	this will pause the shell until enter is inputed by user. This does not need any arg.
+
+quit
+	this would kill all the zombie children and exit the shell. This does not need any arg.
+
+pwd
+	this would print the current working directory. This does need any arg.
+
+-Shell Description
+
+shel_loop
+	it will check for if there is more than one arg, else there is a batchfile to use as input
+
+execute_file
+	aternative shell_loop that runs each argv in a loop reading from the inputted file. this use fgets to get string line by line from file.
+
+excute
+	this would find argv at 0 if is in builtin functions else it would go to launch to exec outside functions
+
+launch
+	this would check for & to pause parent, else it just goes on to fork and check for piping, redir and exec argv. For redir and pipe, the shell would call a function to find if there is a first instace of '>','>>','<',and '|'. and run dir or/and pipe function
+
+piping
+	this creates a pipe with pipe(), and call to find there is redir and exec p1 then p2 argv. this use dup2 to pipe stdin and stdout of child
+
+read_line
+	reads line with readline(), with prompt created using the shell environ of cwd and strcat '>' into prompt. it would also add history with add_history() and return the use input line
+
+split_line uses strtok_r and and token delim to split earcj string by global variable of token_delim on top. this returns the argv
+
+find_sym
+	loops through argv and find matcing symbol and return the position of it.
+
+split_argv 
+	split the argv into two argv by using the symbol as the indicator where to split. the shell uses strdup to duplicate the string at all position after the symbol. any string after symbol will be null for the main argv. returning the second buffered argv to caller. the reason to use strdup is so that the str is moved to a different memory location and does not affect the main argv. this creates an isolation where functions can only read what it was meant to read. this prevents data leak.
+
+cwd
+	use getcwd() to get cwd
+
+getenvs
+	The shell uses getwuid to get account info of this account to find username. it also uses getenv to get $PATH, then call internal cwd function toget cwd, then getenv() to get $HOME, and uses sprintf to get shell's exec directory.
+
+redir_in & redir_out
+	this will redirection any input or output into a file. redir_out will needs one more arg besides filename as to wipe the file or just to append
+
+clr
+	use the system call clear to clear screen. Will only work in linux
+
+cd 
+	uses chdir() to change cwd
+
+printenv
+	print env with redir
+
+pwd
+	print cwd
+
+quit
+	waitpid with WNOHANG to clear zombies and return -1 to quit shell
+mypause
+	pause is not an option, you just wait.
+
+help
+	help can find its readme file anywhere with the env of the shell in getenv(), do some string parsing to have the dir and readme. then find if there are second argv and check if builtin functions with switch case. parse a new argv according to previous condition, will man if not builtin. it will fork a child, then wait till the child is done. 
+
+dir
+	uses dirent struct DIR datatype to get specified diretory's information. it will read the dir and print dir's name and type as it loops
+
+echo
+	it will loop after first argv and print to stdout. will put in '\0' for all cases to know as EOF
